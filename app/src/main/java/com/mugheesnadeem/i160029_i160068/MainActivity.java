@@ -223,21 +223,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
 
         super.onPause();
-        /*
+
         state = "Offline";
         State(state);
-
-         */
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        /*
+
         state = "Online";
         State(state);
 
-         */
     }
 
 }
