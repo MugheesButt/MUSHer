@@ -56,7 +56,7 @@ class RVAdapter extends RecyclerView.Adapter<RVAdapter.RVViewHolder> {
         final UserProfile user = Users.get(position);
 
 
-        Uri ImageURI = Uri.parse("android.resource://com.mugheesnadeem.i160029_i160068/drawable/ic_person_black_24dp");
+        Uri ImageURI = Uri.parse("android.resource://com.mugheesnadeem.i160029_i160068/drawable/ic_person_black_256dp");
 
         if (user.getImageURL().equals("default"))
             holder.image.setImageURI(ImageURI);

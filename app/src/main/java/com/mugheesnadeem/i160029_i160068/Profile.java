@@ -10,9 +10,12 @@ import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.webkit.MimeTypeMap;
 import android.widget.Button;
@@ -24,6 +27,7 @@ import android.widget.Toast;
 import com.google.android.gms.tasks.Continuation;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -38,6 +42,8 @@ import com.google.firebase.storage.StorageTask;
 import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.UUID;
@@ -54,9 +60,11 @@ public class Profile extends AppCompatActivity {
     StorageReference storageReference;
 
     private static final int IMAGE_REQUEST = 1000 ;
-    private static final int PERMISSION_CODE=1001;
+    private static final int PERMISSION_CODE = 1001;
+    boolean delResult = false;
     private Uri ImageURI ;
     String state = "";
+    int flag = 0 ;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,7 +82,7 @@ public class Profile extends AppCompatActivity {
         myDb = FirebaseDatabase.getInstance().getReference("Users").child(firebaseUser.getUid());
 
 
-        ImageURI = Uri.parse("android.resource://com.mugheesnadeem.i160029_i160068/drawable/ic_person_black_24dp");
+        ImageURI = Uri.parse("android.resource://com.mugheesnadeem.i160029_i160068/drawable/ic_person_black_256dp");
 
         myDb.addValueEventListener(new ValueEventListener() {
             @Override
@@ -85,8 +93,9 @@ public class Profile extends AppCompatActivity {
 
                 if (userProfile.getImageURL().equals("default"))
                     img.setImageURI(ImageURI);
-                else
+                else {
                     Picasso.get().load(userProfile.getImageURL()).into(img);
+                }
 
             }
 
@@ -130,63 +139,73 @@ public class Profile extends AppCompatActivity {
             @Override
             public void onClick(View view) {
 
-                String uniqueId = UUID.randomUUID().toString();
-                final StorageReference ur_firebase_reference = storageReference.child("images/" + uniqueId);
+                if (flag == 1) {
 
-                Uri file = ImageURI;
-                UploadTask uploadTask = ur_firebase_reference.putFile(file);
+                    final StorageReference ur_firebase_reference = storageReference.child("images/" + firebaseUser.getUid());
+                    Toast.makeText(Profile.this, "Updating Profile Picture", Toast.LENGTH_LONG).show();
+                    Uri file = ImageURI;
+                    Bitmap bmp = null;
+                    try {
+                        bmp = MediaStore.Images.Media.getBitmap(getContentResolver(), file);
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 10, baos);
+                        byte[] data = baos.toByteArray();
+                        UploadTask uploadTask = ur_firebase_reference.putBytes(data);
 
-                Task<Uri> urlTask = uploadTask.continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {
-                    @Override
-                    public Task<Uri> then(@NonNull Task<UploadTask.TaskSnapshot> task) throws Exception {
-                        if (!task.isSuccessful()) {
-                            throw task.getException();
-                        }
+                        Task<Uri> urlTask = uploadTask.continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {
+                            @Override
+                            public Task<Uri> then(@NonNull Task<UploadTask.TaskSnapshot> task) throws Exception {
+                                if (!task.isSuccessful()) {
+                                    throw task.getException();
+                                }
 
 
-                        // Continue with the task to get the download URL
-                        return ur_firebase_reference.getDownloadUrl();
-                    }
-                }).addOnCompleteListener(new OnCompleteListener<Uri>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Uri> task) {
-                        if (task.isSuccessful()) {
-                            Uri downloadUri = task.getResult();
-                            System.out.println("Upload " + downloadUri);
-                            Toast.makeText(Profile.this, "Successfully uploaded", Toast.LENGTH_SHORT).show();
-
-                            if (downloadUri != null) {
-
-                                String photoStringLink = downloadUri.toString(); //YOU WILL GET THE DOWNLOAD URL HERE !!!!
-
-                                // Get a URL to the uploaded content
-                                //String g = taskSnapshot.getUploadSessionUri().toString();
-                                FirebaseDatabase database = FirebaseDatabase.getInstance();
-                                DatabaseReference myRef = database.getReference("Users").child(firebaseUser.getUid());
-                                HashMap<String, Object> map = new HashMap<>();
-                                map.put("imageURL" , photoStringLink);
-                                myRef.updateChildren(map);
-                                //myRef.setValue(contact);
-                                System.out.println("Upload " + photoStringLink);
-                                finish();
-
+                                // Continue with the task to get the download URL
+                                return ur_firebase_reference.getDownloadUrl();
                             }
+                        }).addOnCompleteListener(new OnCompleteListener<Uri>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Uri> task) {
+                                if (task.isSuccessful()) {
+                                    Uri downloadUri = task.getResult();
+                                    System.out.println("Upload " + downloadUri);
+                                    Toast.makeText(Profile.this, "Successfully uploaded", Toast.LENGTH_SHORT).show();
 
-                        } else {
-                            Toast.makeText(Profile.this , "Failed" , Toast.LENGTH_SHORT).show();
-                            // Handle failures
-                            // ...
-                        }
+                                    if (downloadUri != null) {
+
+                                        String photoStringLink = downloadUri.toString(); //YOU WILL GET THE DOWNLOAD URL HERE !!!!
+
+                                        // Get a URL to the uploaded content
+                                        //String g = taskSnapshot.getUploadSessionUri().toString();
+                                        FirebaseDatabase database = FirebaseDatabase.getInstance();
+                                        DatabaseReference myRef = database.getReference("Users").child(firebaseUser.getUid());
+                                        HashMap<String, Object> map = new HashMap<>();
+                                        map.put("imageURL", photoStringLink);
+                                        myRef.updateChildren(map);
+                                        //myRef.setValue(contact);
+                                        System.out.println("Upload " + photoStringLink);
+                                        finish();
+
+                                    }
+
+                                } else {
+                                    Toast.makeText(Profile.this, "Failed", Toast.LENGTH_SHORT).show();
+                                    // Handle failures
+                                    // ...
+                                }
+                            }
+                        });
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                });
-
-
+                } else {
+                    finish();
+                }
             }
         });
 
 
     }
-
 
     private void pickimagefromgallery() {
         Intent intent=new Intent(Intent.ACTION_PICK);
@@ -215,6 +234,7 @@ public class Profile extends AppCompatActivity {
         if (resultCode==RESULT_OK && requestCode==IMAGE_REQUEST){
             ImageURI = data.getData();
             img.setImageURI(ImageURI);
+            flag = 1;
         }
     }
 

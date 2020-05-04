@@ -82,7 +82,7 @@ class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHold
 
         if(getItemViewType(position) == MSG_RIGHT_TEXT)
         {
-                holder.right_msg.setText(message.getMessage());
+            holder.right_msg.setText(message.getMessage());
         }
 
         else if (getItemViewType(position) == MSG_RIGHT_IMAGE)
@@ -100,14 +100,13 @@ class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHold
         {
             setImage(message.getSender(),holder.sender_image);
             Picasso.get().load(message.getMessage()).into(holder.pic_left);
-
         }
 
     }
 
     private void setImage(final String userID, final ImageView img)
     {
-        img.setImageURI(Uri.parse("android.resource://com.mugheesnadeem.i160029_i160068/drawable/ic_person_black_24dp"));
+        img.setImageURI(Uri.parse("android.resource://com.mugheesnadeem.i160029_i160068/drawable/ic_person_black_256dp"));
         DatabaseReference myDb = FirebaseDatabase.getInstance().getReference("Users");
         myDb.addValueEventListener(new ValueEventListener() {
             @Override

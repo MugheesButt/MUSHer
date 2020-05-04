@@ -9,7 +9,7 @@ public class UserProfile {
         Username = "default";
         ImageURL = "default";
         search = "default";
-        state = "default";
+        state = "Offline";
     };
 
     UserProfile(String id , String Username , String ImageURL, String search, String state)

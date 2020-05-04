@@ -9,9 +9,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -19,8 +22,11 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.common.internal.Constants;
 import com.google.android.gms.tasks.Continuation;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -33,6 +39,8 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
@@ -42,7 +50,7 @@ public class ChatActivity extends AppCompatActivity {
     TextView name , status ;
     EditText msgBox ;
     ImageButton cam , send;
-    String state = "";
+    String state = "Offline";
 
     FirebaseUser firebaseUser;
     DatabaseReference dbRef ;
@@ -182,56 +190,67 @@ public class ChatActivity extends AppCompatActivity {
 
     private String sendImage(final MessageProfile msg)
     {
-
         final DatabaseReference mDb = FirebaseDatabase.getInstance().getReference();
         Toast.makeText(ChatActivity.this, "Sending Picture", Toast.LENGTH_SHORT).show();
         String uniqueId = UUID.randomUUID().toString();
-        final StorageReference ur_firebase_reference = storageReference.child("images/" + uniqueId);
-
         Uri file = ImageURI;
-        UploadTask uploadTask = ur_firebase_reference.putFile(file);
 
-        Task<Uri> urlTask = uploadTask.continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {
-            @Override
-            public Task<Uri> then(@NonNull Task<UploadTask.TaskSnapshot> task) throws Exception {
-                if (!task.isSuccessful()) {
-                    throw task.getException();
-                }
+        final StorageReference childRef2 = storageReference.child("images/" + uniqueId);
+        //storageRef.child(UserDetails.username+"profilepic.jpg");
+        Bitmap bmp = null;
+        try {
+            bmp = MediaStore.Images.Media.getBitmap(getContentResolver(), file);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bmp.compress(Bitmap.CompressFormat.JPEG, 10, baos);
+            byte[] data = baos.toByteArray();
+            //uploading the image
+            final UploadTask uploadTask2 = childRef2.putBytes(data);
 
-
-                // Continue with the task to get the download URL
-                return ur_firebase_reference.getDownloadUrl();
-            }
-        }).addOnCompleteListener(new OnCompleteListener<Uri>() {
-            @Override
-            public void onComplete(@NonNull Task<Uri> task) {
-                if (task.isSuccessful()) {
-                    Uri downloadUri = task.getResult();
-                    System.out.println("Send " + downloadUri);
-                    Toast.makeText(ChatActivity.this, "Successfully sent", Toast.LENGTH_SHORT).show();
-                    msgBox.setHint("Successfully sent");
-
-                    if (downloadUri != null) {
-
-                        photoStringLink = downloadUri.toString(); //YOU WILL GET THE DOWNLOAD URL HERE !!!!
-
-                        // Get a URL to the uploaded content
-                        //String g = taskSnapshot.getUploadSessionUri().toString();
-                        System.out.println("Sent " + photoStringLink);
-                        msgBox.setHint("");
-                        msg.setMessage(photoStringLink);
-                        mDb.child("Chats").push().setValue(msg);
-                        MESSAGE_FLAG = 0 ;
-                        msgBox.setEnabled(true);
+            Task<Uri> urlTask = uploadTask2.continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {
+                @Override
+                public Task<Uri> then(@NonNull Task<UploadTask.TaskSnapshot> task) throws Exception {
+                    if (!task.isSuccessful()) {
+                        throw task.getException();
                     }
 
-                } else {
-                    Toast.makeText(ChatActivity.this , "Failed" , Toast.LENGTH_SHORT).show();
-                    // Handle failures
-                    // ...
+                    // Continue with the task to get the download URL
+                    return childRef2.getDownloadUrl();
                 }
-            }
-        });
+            }).addOnCompleteListener(new OnCompleteListener<Uri>() {
+                @Override
+                public void onComplete(@NonNull Task<Uri> task) {
+                    if (task.isSuccessful()) {
+                        Uri downloadUri = task.getResult();
+                        System.out.println("Send " + downloadUri);
+                        Toast.makeText(ChatActivity.this, "Successfully sent", Toast.LENGTH_SHORT).show();
+                        msgBox.setHint("Successfully sent");
+
+                        if (downloadUri != null) {
+
+                            photoStringLink = downloadUri.toString(); //YOU WILL GET THE DOWNLOAD URL HERE !!!!
+
+                            // Get a URL to the uploaded content
+                            //String g = taskSnapshot.getUploadSessionUri().toString();
+                            System.out.println("Sent " + photoStringLink);
+                            msgBox.setHint("");
+                            msg.setMessage(photoStringLink);
+                            mDb.child("Chats").push().setValue(msg);
+                            MESSAGE_FLAG = 0 ;
+                            msgBox.setEnabled(true);
+                        }
+
+                    } else {
+                        Toast.makeText(ChatActivity.this , "Failed" , Toast.LENGTH_SHORT).show();
+                        // Handle failures
+                        // ...
+                    }
+                }
+            });
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         return photoStringLink;
     }
@@ -298,5 +317,32 @@ public class ChatActivity extends AppCompatActivity {
             MESSAGE_FLAG = 1 ;
             //img.setImageURI(ImageURI);
         }
+    }
+
+    private void State (String s)
+    {
+        DatabaseReference stateRef = FirebaseDatabase.getInstance().getReference("Users").child(firebaseUser.getUid());
+        HashMap<String , Object> map = new HashMap<>();
+        map.put("state" , s);
+        stateRef.updateChildren(map);
+
+    }
+
+    @Override
+    protected void onPause() {
+
+        super.onPause();
+
+        state = "Offline";
+        State(state);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        state = "Online";
+        State(state);
+
     }
 }

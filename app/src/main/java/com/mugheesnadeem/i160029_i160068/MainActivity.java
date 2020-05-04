@@ -39,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
     ArrayList<String> usersList ;
     ArrayList<MessageProfile> Messages ;
     ArrayList<UserProfile> users ;
-    String state = "default" ;
+    String state = "Offline" ;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

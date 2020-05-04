@@ -163,4 +163,33 @@ public class AllUsers extends AppCompatActivity {
         });
 
     }
+
+
+    private void State (String s)
+    {
+        DatabaseReference stateRef = FirebaseDatabase.getInstance().getReference("Users").child(user.getUid());
+        HashMap<String , Object> map = new HashMap<>();
+        map.put("state" , s);
+        stateRef.updateChildren(map);
+
+    }
+
+    @Override
+    protected void onPause() {
+
+        super.onPause();
+
+        state = "Offline";
+        State(state);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        state = "Online";
+        State(state);
+
+    }
+
 }
